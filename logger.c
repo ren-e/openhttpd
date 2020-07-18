@@ -29,6 +29,7 @@
 #include <imsg.h>
 
 #include "httpd.h"
+#include "compat.h"
 
 int		 logger_dispatch_parent(int, struct privsep_proc *,
 		    struct imsg *);

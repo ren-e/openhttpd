@@ -41,6 +41,8 @@
 #include "http.h"
 #include "patterns.h"
 
+#include "compat.h"
+
 static int	 server_httpmethod_cmp(const void *, const void *);
 static int	 server_httperror_cmp(const void *, const void *);
 void		 server_httpdesc_free(struct http_descriptor *);
@@ -208,7 +210,7 @@ server_read_http(struct bufferevent *bev, void *arg)
 
 	size = EVBUFFER_LENGTH(src);
 	DPRINTF("%s: session %d: size %lu, to read %lld",
-	    __func__, clt->clt_id, size, clt->clt_toread);
+	    __func__, clt->clt_id, size, (long long)clt->clt_toread);
 	if (!size) {
 		clt->clt_toread = TOREAD_HTTP_HEADER;
 		goto done;
@@ -217,7 +219,7 @@ server_read_http(struct bufferevent *bev, void *arg)
 	while (!clt->clt_headersdone) {
 		if (!clt->clt_line) {
 			/* Peek into the buffer to see if it looks like HTTP */
-			key = EVBUFFER_DATA(src);
+			key = (char *)EVBUFFER_DATA(src);
 			if (!isalpha((unsigned char)*key)) {
 				server_abort_http(clt, 400,
 				    "invalid request line");
@@ -469,7 +471,7 @@ server_read_httpcontent(struct bufferevent *bev, void *arg)
 
 	size = EVBUFFER_LENGTH(src);
 	DPRINTF("%s: session %d: size %lu, to read %lld", __func__,
-	    clt->clt_id, size, clt->clt_toread);
+	    clt->clt_id, size, (long long)clt->clt_toread);
 	if (!size)
 		return;
 
@@ -486,7 +488,7 @@ server_read_httpcontent(struct bufferevent *bev, void *arg)
 			clt->clt_toread -= size;
 		}
 		DPRINTF("%s: done, size %lu, to read %lld", __func__,
-		    size, clt->clt_toread);
+		    size, (long long)clt->clt_toread);
 	}
 	if (clt->clt_toread == 0) {
 		fcgi_add_stdin(clt, NULL);
@@ -662,7 +664,7 @@ server_read_httprange(struct bufferevent *bev, void *arg)
 				/* Add end marker */
 				if (server_bufferevent_printf(clt,
 				    "\r\n--%llu--\r\n",
-				    clt->clt_boundary) == -1)
+				    (long long)clt->clt_boundary) == -1)
 					goto fail;
 			}
 			r->range_toread = TOREAD_HTTP_NONE;
@@ -677,9 +679,9 @@ server_read_httprange(struct bufferevent *bev, void *arg)
 			    "\r\n--%llu\r\n"
 			    "Content-Type: %s/%s\r\n"
 			    "Content-Range: bytes %lld-%lld/%zu\r\n\r\n",
-			    clt->clt_boundary,
+			    (long long)clt->clt_boundary,
 			    media->media_type, media->media_subtype,
-			    range->start, range->end, r->range_total) == -1)
+			    (long long)range->start, (long long)range->end, r->range_total) == -1)
 				goto fail;
 		}
 		r->range_toread = range->end - range->start + 1;

@@ -33,6 +33,7 @@
 
 #include "httpd.h"
 #include "http.h"
+#include "compat.h"
 
 #define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
 #define MAXIMUM(a, b)	(((a) > (b)) ? (a) : (b))
@@ -316,7 +317,7 @@ server_partial_file_request(struct httpd *env, struct client *clt, char *path,
 	if ((nranges = parse_ranges(clt, range_str, st->st_size)) < 1) {
 		code = 416;
 		(void)snprintf(content_range, sizeof(content_range),
-		    "bytes */%lld", st->st_size);
+		    "bytes */%lld", (long long)st->st_size);
 		errstr = content_range;
 		goto abort;
 	}
@@ -331,8 +332,8 @@ server_partial_file_request(struct httpd *env, struct client *clt, char *path,
 	if (nranges == 1) {
 		range = &r->range[0];
 		(void)snprintf(content_range, sizeof(content_range),
-		    "bytes %lld-%lld/%lld", range->start, range->end,
-		    st->st_size);
+		    "bytes %lld-%lld/%lld", (long long)range->start, (long long)range->end,
+		    (long long)st->st_size);
 		if (kv_add(&resp->http_headers, "Content-Range",
 		    content_range) == NULL)
 			goto abort;
@@ -352,9 +353,9 @@ server_partial_file_request(struct httpd *env, struct client *clt, char *path,
 			    "\r\n--%llu\r\n"
 			    "Content-Type: %s/%s\r\n"
 			    "Content-Range: bytes %lld-%lld/%lld\r\n\r\n",
-			    clt->clt_boundary,
+			    (long long)clt->clt_boundary,
 			    media->media_type, media->media_subtype,
-			    range->start, range->end, st->st_size)) < 0)
+			    (long long)range->start, (long long)range->end, (long long)st->st_size)) < 0)
 				goto abort;
 
 			/* Add data length */
@@ -362,7 +363,7 @@ server_partial_file_request(struct httpd *env, struct client *clt, char *path,
 
 		}
 		if ((ret = snprintf(NULL, 0, "\r\n--%llu--\r\n",
-		    clt->clt_boundary)) < 0)
+		    (long long)clt->clt_boundary)) < 0)
 			goto abort;
 		content_length += ret;
 
@@ -371,7 +372,7 @@ server_partial_file_request(struct httpd *env, struct client *clt, char *path,
 		    sizeof(multipart_media.media_type));
 		(void)snprintf(multipart_media.media_subtype,
 		    sizeof(multipart_media.media_subtype),
-		    "byteranges; boundary=%llu", clt->clt_boundary);
+		    "byteranges; boundary=%llu", (long long)clt->clt_boundary);
 		media = &multipart_media;
 	}
 
@@ -532,7 +533,7 @@ server_file_index(struct httpd *env, struct client *clt, struct stat *st)
 			    strchr(escapeduri, ':') != NULL ? "./" : "",
 			    escapeduri, escapedhtml,
 			    MAXIMUM(namewidth, 0), " ",
-			    tmstr, st->st_size) == -1)
+			    tmstr, (long long)st->st_size) == -1)
 				skip = 1;
 		}
 		free(escapeduri);

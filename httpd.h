@@ -38,6 +38,7 @@
 #include <vis.h>
 
 #include "patterns.h"
+#include "compat.h"
 
 #ifndef nitems
 #define nitems(_a) (sizeof((_a)) / sizeof((_a)[0]))

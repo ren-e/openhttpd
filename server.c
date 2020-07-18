@@ -43,8 +43,10 @@
 #include <vis.h>
 
 #include "httpd.h"
+#include "compat.h"
 
 #define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
+
 
 int		 server_dispatch_parent(int, struct privsep_proc *,
 		    struct imsg *);
@@ -624,13 +626,17 @@ server_socket_af(struct sockaddr_storage *ss, in_port_t port)
 	switch (ss->ss_family) {
 	case AF_INET:
 		((struct sockaddr_in *)ss)->sin_port = port;
+#if HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN
 		((struct sockaddr_in *)ss)->sin_len =
 		    sizeof(struct sockaddr_in);
+#endif
 		break;
 	case AF_INET6:
 		((struct sockaddr_in6 *)ss)->sin6_port = port;
+#if HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN
 		((struct sockaddr_in6 *)ss)->sin6_len =
 		    sizeof(struct sockaddr_in6);
+#endif
 		break;
 	default:
 		return (-1);
@@ -739,14 +745,17 @@ server_socket(struct sockaddr_storage *ss, in_port_t port,
 		    &val, sizeof(val)) == -1)
 			goto bad;
 	}
+
 	if (srv_conf->tcpflags & (TCPFLAG_SACK|TCPFLAG_NSACK)) {
 		if (srv_conf->tcpflags & TCPFLAG_NSACK)
 			val = 0;
 		else
 			val = 1;
+#if HAVE_SOCKOPT_TCP_SACK_ENABLE
 		if (setsockopt(s, IPPROTO_TCP, TCP_SACK_ENABLE,
 		    &val, sizeof(val)) == -1)
 			goto bad;
+#endif
 	}
 
 	return (s);
@@ -766,7 +775,7 @@ server_socket_listen(struct sockaddr_storage *ss, in_port_t port,
 	if ((s = server_socket(ss, port, srv_conf, -1, 1)) == -1)
 		return (-1);
 
-	if (bind(s, (struct sockaddr *)ss, ss->ss_len) == -1)
+	if (bind(s, (struct sockaddr *)ss, SS_LEN(ss)) == -1)
 		goto bad;
 	if (listen(s, srv_conf->tcpbacklog) == -1)
 		goto bad;
@@ -787,7 +796,7 @@ server_socket_connect(struct sockaddr_storage *ss, in_port_t port,
 	if ((s = server_socket(ss, port, srv_conf, -1, 0)) == -1)
 		return (-1);
 
-	if (connect(s, (struct sockaddr *)ss, ss->ss_len) == -1) {
+	if (connect(s, (struct sockaddr *)ss, SS_LEN(ss)) == -1) {
 		if (errno != EINPROGRESS)
 			goto bad;
 	}
@@ -837,7 +846,7 @@ server_tls_readcb(int fd, short event, void *arg)
 		goto err;
 	}
 
-	server_bufferevent_add(&bufev->ev_read, bufev->timeout_read);
+	server_bufferevent_add(&bufev->ev_read, bufev->timeout_read.tv_sec);
 
 	len = EVBUFFER_LENGTH(bufev->input);
 	if (bufev->wm_read.low != 0 && len < bufev->wm_read.low)
@@ -854,7 +863,7 @@ server_tls_readcb(int fd, short event, void *arg)
 	return;
 
  retry:
-	server_bufferevent_add(&bufev->ev_read, bufev->timeout_read);
+	server_bufferevent_add(&bufev->ev_read, bufev->timeout_read.tv_sec);
 	return;
 
  err:
@@ -890,7 +899,7 @@ server_tls_writecb(int fd, short event, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(bufev->output) != 0)
-		server_bufferevent_add(&bufev->ev_write, bufev->timeout_write);
+		server_bufferevent_add(&bufev->ev_write, bufev->timeout_write.tv_sec);
 
 	if (bufev->writecb != NULL &&
 	    EVBUFFER_LENGTH(bufev->output) <= bufev->wm_write.low)
@@ -898,7 +907,7 @@ server_tls_writecb(int fd, short event, void *arg)
 	return;
 
  retry:
-	server_bufferevent_add(&bufev->ev_write, bufev->timeout_write);
+	server_bufferevent_add(&bufev->ev_write, bufev->timeout_write.tv_sec);
 	return;
 
  err:

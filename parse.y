@@ -31,7 +31,11 @@
 #include <sys/queue.h>
 #include <sys/tree.h>
 #include <sys/ioctl.h>
-#include <sys/sockio.h>
+
+#ifdef HAVE_OPENBSD_SYSTEM
+# include <sys/sockio.h>
+#endif
+
 #include <sys/time.h>
 
 #include <net/if.h>
@@ -50,7 +54,9 @@
 #include <string.h>
 #include <ifaddrs.h>
 #include <syslog.h>
+#include <stdlib.h>
 
+#include "compat.h"
 #include "httpd.h"
 #include "http.h"
 
@@ -203,7 +209,7 @@ main		: PREFORK NUMBER	{
 				break;
 			if ($2 <= 0 || $2 > PROC_MAX_INSTANCES) {
 				yyerror("invalid number of preforked "
-				    "servers: %lld", $2);
+				    "servers: %lld", (long long)$2);
 				YYERROR;
 			}
 			conf->sc_prefork_server = $2;
@@ -613,7 +619,7 @@ hstsflags_l	: hstsflags optcommanl hstsflags_l
 
 hstsflags	: MAXAGE NUMBER		{
 			if ($2 < 0 || $2 > INT_MAX) {
-				yyerror("invalid number of seconds: %lld", $2);
+				yyerror("invalid number of seconds: %lld", (long long)$2);
 				YYERROR;
 			}
 			srv_conf->hsts_max_age = $2;
@@ -1040,7 +1046,7 @@ logstyle	: COMMON		{
 
 filter		: block RETURN NUMBER optstring	{
 			if ($3 <= 0 || server_httperror_byid($3) == NULL) {
-				yyerror("invalid return code: %lld", $3);
+				yyerror("invalid return code: %lld", (long long)$3);
 				free($4);
 				YYERROR;
 			}
@@ -1104,7 +1110,7 @@ tcpflags	: SACK			{ srv_conf->tcpflags |= TCPFLAG_SACK; }
 		}
 		| BACKLOG NUMBER	{
 			if ($2 < 0 || $2 > SERVER_MAX_CLIENTS) {
-				yyerror("invalid backlog: %lld", $2);
+				yyerror("invalid backlog: %lld", (long long)$2);
 				YYERROR;
 			}
 			srv_conf->tcpbacklog = $2;
@@ -1112,13 +1118,13 @@ tcpflags	: SACK			{ srv_conf->tcpflags |= TCPFLAG_SACK; }
 		| SOCKET BUFFER NUMBER	{
 			srv_conf->tcpflags |= TCPFLAG_BUFSIZ;
 			if ((srv_conf->tcpbufsiz = $3) < 0) {
-				yyerror("invalid socket buffer size: %lld", $3);
+				yyerror("invalid socket buffer size: %lld", (long long)$3);
 				YYERROR;
 			}
 		}
 		| IP STRING NUMBER	{
 			if ($3 < 0) {
-				yyerror("invalid ttl: %lld", $3);
+				yyerror("invalid ttl: %lld", (long long)$3);
 				free($2);
 				YYERROR;
 			}
@@ -1191,7 +1197,7 @@ medianamesl	: numberstring				{
 
 port		: PORT NUMBER {
 			if ($2 <= 0 || $2 > (int)USHRT_MAX) {
-				yyerror("invalid port: %lld", $2);
+				yyerror("invalid port: %lld", (long long)$2);
 				YYERROR;
 			}
 			$$.val[0] = htons($2);
@@ -1215,7 +1221,7 @@ port		: PORT NUMBER {
 timeout		: NUMBER
 		{
 			if ($1 < 0) {
-				yyerror("invalid timeout: %lld", $1);
+				yyerror("invalid timeout: %lld", (long long)$1);
 				YYERROR;
 			}
 			$$.tv_sec = $1;
@@ -1225,7 +1231,7 @@ timeout		: NUMBER
 
 numberstring	: NUMBER		{
 			char *s;
-			if (asprintf(&s, "%lld", $1) == -1) {
+			if (asprintf(&s, "%lld", (long long)$1) == -1) {
 				yyerror("asprintf: number");
 				YYERROR;
 			}
@@ -1471,8 +1477,8 @@ findeol(void)
 int
 yylex(void)
 {
-	unsigned char	 buf[8096];
-	unsigned char	*p, *val;
+	char		 buf[8096];
+	char		*p, *val;
 	int		 quotec, next, c;
 	int		 token;
 
@@ -1902,7 +1908,9 @@ host_v4(const char *s)
 	if ((h = calloc(1, sizeof(*h))) == NULL)
 		fatal(__func__);
 	sain = (struct sockaddr_in *)&h->ss;
+#ifdef HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN
 	sain->sin_len = sizeof(struct sockaddr_in);
+#endif
 	sain->sin_family = AF_INET;
 	sain->sin_addr.s_addr = ina.s_addr;
 	if (sain->sin_addr.s_addr == INADDR_ANY)
@@ -1927,7 +1935,9 @@ host_v6(const char *s)
 		if ((h = calloc(1, sizeof(*h))) == NULL)
 			fatal(__func__);
 		sa_in6 = (struct sockaddr_in6 *)&h->ss;
+#ifdef HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN
 		sa_in6->sin6_len = sizeof(struct sockaddr_in6);
+#endif
 		sa_in6->sin6_family = AF_INET6;
 		memcpy(&sa_in6->sin6_addr,
 		    &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr,
@@ -1996,12 +2006,16 @@ host_dns(const char *s, struct addresslist *al, int max,
 
 		if (res->ai_family == AF_INET) {
 			sain = (struct sockaddr_in *)&h->ss;
+#ifdef HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN
 			sain->sin_len = sizeof(struct sockaddr_in);
+#endif
 			sain->sin_addr.s_addr = ((struct sockaddr_in *)
 			    res->ai_addr)->sin_addr.s_addr;
 		} else {
 			sin6 = (struct sockaddr_in6 *)&h->ss;
+#ifdef HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN
 			sin6->sin6_len = sizeof(struct sockaddr_in6);
+#endif
 			memcpy(&sin6->sin6_addr, &((struct sockaddr_in6 *)
 			    res->ai_addr)->sin6_addr, sizeof(struct in6_addr));
 		}
@@ -2059,12 +2073,16 @@ host_if(const char *s, struct addresslist *al, int max,
 
 		if (af == AF_INET) {
 			sain = (struct sockaddr_in *)&h->ss;
+#ifdef HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN
 			sain->sin_len = sizeof(struct sockaddr_in);
+#endif
 			sain->sin_addr.s_addr = ((struct sockaddr_in *)
 			    p->ifa_addr)->sin_addr.s_addr;
 		} else {
 			sin6 = (struct sockaddr_in6 *)&h->ss;
+#ifdef HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN
 			sin6->sin6_len = sizeof(struct sockaddr_in6);
+#endif
 			memcpy(&sin6->sin6_addr, &((struct sockaddr_in6 *)
 			    p->ifa_addr)->sin6_addr, sizeof(struct in6_addr));
 			sin6->sin6_scope_id = ((struct sockaddr_in6 *)
@@ -2339,6 +2357,7 @@ getservice(char *n)
 int
 is_if_in_group(const char *ifname, const char *groupname)
 {
+#ifdef HAVE_STRUCT_IFGROUPREQ
 	unsigned int		 len;
 	struct ifgroupreq	 ifgr;
 	struct ifg_req		*ifg;
@@ -2378,4 +2397,7 @@ is_if_in_group(const char *ifname, const char *groupname)
 end:
 	close(s);
 	return (ret);
+#else
+	return (0);
+#endif
 }

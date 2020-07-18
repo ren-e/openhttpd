@@ -110,7 +110,7 @@ usage(void)
 }
 
 int
-main(int argc, char *argv[])
+main(int argc, char *argv[], char *envp[])
 {
 	int			 c;
 	unsigned int		 proc;
@@ -165,6 +165,11 @@ main(int argc, char *argv[])
 	/* log to stderr until daemonized */
 	log_init(debug ? debug : 1, LOG_DAEMON);
 
+#if LIBBSD_OVERLAY
+	/* initialize for libbsd */
+	setproctitle_init(argc, argv, envp);
+
+#endif
 	argc -= optind;
 	if (argc > 0)
 		usage();
@@ -792,7 +797,7 @@ socket_rlimit(int maxfd)
 
 	if (getrlimit(RLIMIT_NOFILE, &rl) == -1)
 		fatal("%s: failed to get resource limit", __func__);
-	log_debug("%s: max open files %llu", __func__, rl.rlim_max);
+	log_debug("%s: max open files %llu", __func__, (long long)rl.rlim_max);
 
 	/*
 	 * Allow the maximum number of open file descriptors for this
@@ -850,7 +855,7 @@ get_string(uint8_t *ptr, size_t len)
 		    isspace((unsigned char)ptr[i])))
 			break;
 
-	return strndup(ptr, i);
+	return strndup((const char *)ptr, i);
 }
 
 void *
@@ -1318,7 +1323,7 @@ auth_free(struct serverauth *serverauth, struct auth *auth)
 const char *
 print_host(struct sockaddr_storage *ss, char *buf, size_t len)
 {
-	if (getnameinfo((struct sockaddr *)ss, ss->ss_len,
+	if (getnameinfo((struct sockaddr *)ss, SS_LEN(ss),
 	    buf, len, NULL, 0, NI_NUMERICHOST) != 0) {
 		buf[0] = '\0';
 		return (NULL);
