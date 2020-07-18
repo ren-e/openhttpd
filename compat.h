@@ -32,6 +32,14 @@
 # define DEF_WEAK(x)
 #endif
 
+#ifndef IPV6_MINHOPCOUNT
+# define IPV6_MINHOPCOUNT	73
+#endif
+
+#ifndef SO_REUSEPORT
+# define SO_REUSEPORT		SO_REUSEADDR
+#endif
+
 /* Avoid imsg overflow */
 #if PATH_MAX > 1024
 # undef PATH_MAX

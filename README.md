@@ -1,10 +1,10 @@
-# OpenHTTPd
-OpenHTTPd is an application imported from OpenBSD, and slightly modified to work on Linux.
+# OpenBSD httpd
+The OpenBSD httpd webserver with minor adjustments to work on Linux.
 
 ### Requirements
   - Debian Linux
-  - libbsd >= 0.9.1-2
-  - libressl >= 3.2.0
+  - libbsd >= 0.9.1
+  - libressl >= 3.1.3
   - libevent >= 2.1.8
   - freebsd-buildutils >= 10.3
 

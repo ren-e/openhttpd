@@ -726,9 +726,11 @@ server_socket(struct sockaddr_storage *ss, in_port_t port,
 				goto bad;
 			break;
 		case AF_INET6:
+#ifdef IPV6_MINHOPCOUNT
 			if (setsockopt(s, IPPROTO_IPV6, IPV6_MINHOPCOUNT,
 			    &val, sizeof(val)) == -1)
 				goto bad;
+#endif
 			break;
 		}
 	}
