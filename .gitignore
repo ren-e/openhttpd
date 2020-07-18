@@ -1,0 +1,7 @@
+*.o
+*.so
+*.gz
+CVS
+httpd
+parse.c
+httpd.conf
