@@ -69,6 +69,7 @@
 /* compat prototypes */
 __attribute__((weak)) void
 		 __explicit_bzero_hook(void *, size_t);
+int		 b64_ntop(u_char const *, size_t, char *, size_t);
 int		 b64_pton(char const *, u_char *, size_t);
 void		 bufferevent_read_pressure_cb(struct evbuffer *, size_t, size_t, void *);
 int		 crypt_checkpass(const char *, const char *);
