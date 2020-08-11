@@ -1336,7 +1336,8 @@ server_close(struct client *clt, const char *msg)
 	/* free the HTTP descriptors incl. headers */
 	server_close_http(clt);
 
-	event_del(&clt->clt_ev);
+	if (clt->clt_ev.ev_base != 0)
+		event_del(&clt->clt_ev);
 	if (clt->clt_bev != NULL)
 		bufferevent_disable(clt->clt_bev, EV_READ|EV_WRITE);
 	if (clt->clt_srvbev != NULL)

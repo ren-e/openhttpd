@@ -170,6 +170,10 @@ main(int argc, char *argv[], char *envp[])
 	setproctitle_init(argc, argv, envp);
 
 #endif
+
+	/* Avoid using epoll */
+	setenv("EVENT_NOEPOLL", "1", 0);
+
 	argc -= optind;
 	if (argc > 0)
 		usage();
